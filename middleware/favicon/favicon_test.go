@@ -1,16 +1,18 @@
+//nolint:bodyclose // Much easier to just ignore memory leaks in tests
 package favicon
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/valyala/fasthttp"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/utils"
+
+	"github.com/valyala/fasthttp"
 )
 
 // go test -run Test_Middleware_Favicon
@@ -24,22 +26,22 @@ func Test_Middleware_Favicon(t *testing.T) {
 	})
 
 	// Skip Favicon middleware
-	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
 	utils.AssertEqual(t, nil, err, "app.Test(req)")
 	utils.AssertEqual(t, fiber.StatusOK, resp.StatusCode, "Status code")
 
-	resp, err = app.Test(httptest.NewRequest("GET", "/favicon.ico", nil))
+	resp, err = app.Test(httptest.NewRequest(fiber.MethodGet, "/favicon.ico", nil))
 	utils.AssertEqual(t, nil, err, "app.Test(req)")
 	utils.AssertEqual(t, fiber.StatusNoContent, resp.StatusCode, "Status code")
 
-	resp, err = app.Test(httptest.NewRequest("OPTIONS", "/favicon.ico", nil))
+	resp, err = app.Test(httptest.NewRequest(fiber.MethodOptions, "/favicon.ico", nil))
 	utils.AssertEqual(t, nil, err, "app.Test(req)")
 	utils.AssertEqual(t, fiber.StatusOK, resp.StatusCode, "Status code")
 
-	resp, err = app.Test(httptest.NewRequest("PUT", "/favicon.ico", nil))
+	resp, err = app.Test(httptest.NewRequest(fiber.MethodPut, "/favicon.ico", nil))
 	utils.AssertEqual(t, nil, err, "app.Test(req)")
 	utils.AssertEqual(t, fiber.StatusMethodNotAllowed, resp.StatusCode, "Status code")
-	utils.AssertEqual(t, "GET, HEAD, OPTIONS", resp.Header.Get(fiber.HeaderAllow))
+	utils.AssertEqual(t, strings.Join([]string{fiber.MethodGet, fiber.MethodHead, fiber.MethodOptions}, ", "), resp.Header.Get(fiber.HeaderAllow))
 }
 
 // go test -run Test_Middleware_Favicon_Not_Found
@@ -67,8 +69,7 @@ func Test_Middleware_Favicon_Found(t *testing.T) {
 		return nil
 	})
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/favicon.ico", nil))
-
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/favicon.ico", nil))
 	utils.AssertEqual(t, nil, err, "app.Test(req)")
 	utils.AssertEqual(t, fiber.StatusOK, resp.StatusCode, "Status code")
 	utils.AssertEqual(t, "image/x-icon", resp.Header.Get(fiber.HeaderContentType))
@@ -80,15 +81,15 @@ func Test_Middleware_Favicon_Found(t *testing.T) {
 // TODO use os.Dir if fiber upgrades to 1.16
 type mockFS struct{}
 
-func (m mockFS) Open(name string) (http.File, error) {
+func (mockFS) Open(name string) (http.File, error) {
 	if name == "/" {
 		name = "."
 	} else {
 		name = strings.TrimPrefix(name, "/")
 	}
-	file, err := os.Open(name)
+	file, err := os.Open(name) //nolint:gosec // We're in a test func, so this is fine
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open: %w", err)
 	}
 	return file, nil
 }
@@ -102,7 +103,7 @@ func Test_Middleware_Favicon_FileSystem(t *testing.T) {
 		FileSystem: mockFS{},
 	}))
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/favicon.ico", nil))
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/favicon.ico", nil))
 	utils.AssertEqual(t, nil, err, "app.Test(req)")
 	utils.AssertEqual(t, fiber.StatusOK, resp.StatusCode, "Status code")
 	utils.AssertEqual(t, "image/x-icon", resp.Header.Get(fiber.HeaderContentType))
@@ -118,7 +119,7 @@ func Test_Middleware_Favicon_CacheControl(t *testing.T) {
 		File:         "../../.github/testdata/favicon.ico",
 	}))
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/favicon.ico", nil))
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/favicon.ico", nil))
 	utils.AssertEqual(t, nil, err, "app.Test(req)")
 	utils.AssertEqual(t, fiber.StatusOK, resp.StatusCode, "Status code")
 	utils.AssertEqual(t, "image/x-icon", resp.Header.Get(fiber.HeaderContentType))
@@ -153,7 +154,7 @@ func Test_Favicon_Next(t *testing.T) {
 		},
 	}))
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusNotFound, resp.StatusCode)
 }

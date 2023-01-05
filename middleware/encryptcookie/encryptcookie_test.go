@@ -7,9 +7,11 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/utils"
+
 	"github.com/valyala/fasthttp"
 )
 
+//nolint:gochecknoglobals // Using a global var is fine here
 var testKey = GenerateKey()
 
 func Test_Middleware_Encrypt_Cookie(t *testing.T) {
@@ -34,14 +36,14 @@ func Test_Middleware_Encrypt_Cookie(t *testing.T) {
 
 	// Test empty cookie
 	ctx := &fasthttp.RequestCtx{}
-	ctx.Request.Header.SetMethod("GET")
+	ctx.Request.Header.SetMethod(fiber.MethodGet)
 	h(ctx)
 	utils.AssertEqual(t, 200, ctx.Response.StatusCode())
 	utils.AssertEqual(t, "value=", string(ctx.Response.Body()))
 
 	// Test invalid cookie
 	ctx = &fasthttp.RequestCtx{}
-	ctx.Request.Header.SetMethod("GET")
+	ctx.Request.Header.SetMethod(fiber.MethodGet)
 	ctx.Request.Header.SetCookie("test", "Invalid")
 	h(ctx)
 	utils.AssertEqual(t, 200, ctx.Response.StatusCode())
@@ -53,18 +55,19 @@ func Test_Middleware_Encrypt_Cookie(t *testing.T) {
 
 	// Test valid cookie
 	ctx = &fasthttp.RequestCtx{}
-	ctx.Request.Header.SetMethod("POST")
+	ctx.Request.Header.SetMethod(fiber.MethodPost)
 	h(ctx)
 	utils.AssertEqual(t, 200, ctx.Response.StatusCode())
 
 	encryptedCookie := fasthttp.Cookie{}
 	encryptedCookie.SetKey("test")
 	utils.AssertEqual(t, true, ctx.Response.Header.Cookie(&encryptedCookie), "Get cookie value")
-	decryptedCookieValue, _ := DecryptCookie(string(encryptedCookie.Value()), testKey)
+	decryptedCookieValue, err := DecryptCookie(string(encryptedCookie.Value()), testKey)
+	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, "SomeThing", decryptedCookieValue)
 
 	ctx = &fasthttp.RequestCtx{}
-	ctx.Request.Header.SetMethod("GET")
+	ctx.Request.Header.SetMethod(fiber.MethodGet)
 	ctx.Request.Header.SetCookie("test", string(encryptedCookie.Value()))
 	h(ctx)
 	utils.AssertEqual(t, 200, ctx.Response.StatusCode())
@@ -89,7 +92,7 @@ func Test_Encrypt_Cookie_Next(t *testing.T) {
 		return nil
 	})
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, "SomeThing", resp.Cookies()[0].Value)
 }
@@ -120,7 +123,7 @@ func Test_Encrypt_Cookie_Except(t *testing.T) {
 	h := app.Handler()
 
 	ctx := &fasthttp.RequestCtx{}
-	ctx.Request.Header.SetMethod("GET")
+	ctx.Request.Header.SetMethod(fiber.MethodGet)
 	h(ctx)
 	utils.AssertEqual(t, 200, ctx.Response.StatusCode())
 
@@ -132,7 +135,8 @@ func Test_Encrypt_Cookie_Except(t *testing.T) {
 	encryptedCookie := fasthttp.Cookie{}
 	encryptedCookie.SetKey("test2")
 	utils.AssertEqual(t, true, ctx.Response.Header.Cookie(&encryptedCookie), "Get cookie value")
-	decryptedCookieValue, _ := DecryptCookie(string(encryptedCookie.Value()), testKey)
+	decryptedCookieValue, err := DecryptCookie(string(encryptedCookie.Value()), testKey)
+	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, "SomeThing", decryptedCookieValue)
 }
 
@@ -165,18 +169,19 @@ func Test_Encrypt_Cookie_Custom_Encryptor(t *testing.T) {
 	h := app.Handler()
 
 	ctx := &fasthttp.RequestCtx{}
-	ctx.Request.Header.SetMethod("POST")
+	ctx.Request.Header.SetMethod(fiber.MethodPost)
 	h(ctx)
 	utils.AssertEqual(t, 200, ctx.Response.StatusCode())
 
 	encryptedCookie := fasthttp.Cookie{}
 	encryptedCookie.SetKey("test")
 	utils.AssertEqual(t, true, ctx.Response.Header.Cookie(&encryptedCookie), "Get cookie value")
-	decodedBytes, _ := base64.StdEncoding.DecodeString(string(encryptedCookie.Value()))
+	decodedBytes, err := base64.StdEncoding.DecodeString(string(encryptedCookie.Value()))
+	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, "SomeThing", string(decodedBytes))
 
 	ctx = &fasthttp.RequestCtx{}
-	ctx.Request.Header.SetMethod("GET")
+	ctx.Request.Header.SetMethod(fiber.MethodGet)
 	ctx.Request.Header.SetCookie("test", string(encryptedCookie.Value()))
 	h(ctx)
 	utils.AssertEqual(t, 200, ctx.Response.StatusCode())

@@ -1,3 +1,4 @@
+//nolint:bodyclose // Much easier to just ignore memory leaks in tests
 package logger
 
 import (
@@ -16,6 +17,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/gofiber/fiber/v2/utils"
+
 	"github.com/valyala/bytebufferpool"
 	"github.com/valyala/fasthttp"
 )
@@ -36,7 +38,7 @@ func Test_Logger(t *testing.T) {
 		return errors.New("some random error")
 	})
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusInternalServerError, resp.StatusCode)
 	utils.AssertEqual(t, "some random error", buf.String())
@@ -68,21 +70,21 @@ func Test_Logger_locals(t *testing.T) {
 		return c.SendStatus(fiber.StatusOK)
 	})
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusOK, resp.StatusCode)
 	utils.AssertEqual(t, "johndoe", buf.String())
 
 	buf.Reset()
 
-	resp, err = app.Test(httptest.NewRequest("GET", "/int", nil))
+	resp, err = app.Test(httptest.NewRequest(fiber.MethodGet, "/int", nil))
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusOK, resp.StatusCode)
 	utils.AssertEqual(t, "55", buf.String())
 
 	buf.Reset()
 
-	resp, err = app.Test(httptest.NewRequest("GET", "/empty", nil))
+	resp, err = app.Test(httptest.NewRequest(fiber.MethodGet, "/empty", nil))
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusOK, resp.StatusCode)
 	utils.AssertEqual(t, "", buf.String())
@@ -97,7 +99,7 @@ func Test_Logger_Next(t *testing.T) {
 		},
 	}))
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusNotFound, resp.StatusCode)
 }
@@ -109,15 +111,15 @@ func Test_Logger_Done(t *testing.T) {
 	app.Use(New(Config{
 		Done: func(c *fiber.Ctx, logString []byte) {
 			if c.Response().StatusCode() == fiber.StatusOK {
-				buf.Write(logString)
+				_, err := buf.Write(logString)
+				utils.AssertEqual(t, nil, err)
 			}
 		},
 	})).Get("/logging", func(ctx *fiber.Ctx) error {
 		return ctx.SendStatus(fiber.StatusOK)
 	})
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/logging", nil))
-
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/logging", nil))
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusOK, resp.StatusCode)
 	utils.AssertEqual(t, true, buf.Len() > 0)
@@ -130,7 +132,7 @@ func Test_Logger_ErrorTimeZone(t *testing.T) {
 		TimeZone: "invalid",
 	}))
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusNotFound, resp.StatusCode)
 }
@@ -150,7 +152,7 @@ func Test_Logger_ErrorOutput(t *testing.T) {
 		Output: o,
 	}))
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusNotFound, resp.StatusCode)
 
@@ -171,7 +173,7 @@ func Test_Logger_All(t *testing.T) {
 	// Alias colors
 	colors := app.Config().ColorScheme
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/?foo=bar", nil))
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/?foo=bar", nil))
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusNotFound, resp.StatusCode)
 
@@ -190,7 +192,7 @@ func Test_Query_Params(t *testing.T) {
 		Output: buf,
 	}))
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/?foo=bar&baz=moz", nil))
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/?foo=bar&baz=moz", nil))
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusNotFound, resp.StatusCode)
 
@@ -217,7 +219,7 @@ func Test_Response_Body(t *testing.T) {
 		return c.Send([]byte("Post in test"))
 	})
 
-	_, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	_, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
 	utils.AssertEqual(t, nil, err)
 
 	expectedGetResponse := "Sample response body"
@@ -225,7 +227,7 @@ func Test_Response_Body(t *testing.T) {
 
 	buf.Reset() // Reset buffer to test POST
 
-	_, err = app.Test(httptest.NewRequest("POST", "/test", nil))
+	_, err = app.Test(httptest.NewRequest(fiber.MethodPost, "/test", nil))
 	utils.AssertEqual(t, nil, err)
 
 	expectedPostResponse := "Post in test"
@@ -248,7 +250,7 @@ func Test_Logger_AppendUint(t *testing.T) {
 		return c.SendString("hello")
 	})
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusOK, resp.StatusCode)
 	utils.AssertEqual(t, "0 5 200", buf.String())
@@ -274,12 +276,11 @@ func Test_Logger_Data_Race(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
-		resp1, err1 = app.Test(httptest.NewRequest("GET", "/", nil))
+		resp1, err1 = app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
 		wg.Done()
 	}()
-	resp2, err2 = app.Test(httptest.NewRequest("GET", "/", nil))
+	resp2, err2 = app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
 	wg.Wait()
-
 	utils.AssertEqual(t, nil, err1)
 	utils.AssertEqual(t, fiber.StatusOK, resp1.StatusCode)
 	utils.AssertEqual(t, nil, err2)
@@ -288,21 +289,23 @@ func Test_Logger_Data_Race(t *testing.T) {
 
 // go test -v -run=^$ -bench=Benchmark_Logger -benchmem -count=4
 func Benchmark_Logger(b *testing.B) {
-	benchSetup := func(bb *testing.B, app *fiber.App) {
+	benchSetup := func(b *testing.B, app *fiber.App) {
+		b.Helper()
+
 		h := app.Handler()
 
 		fctx := &fasthttp.RequestCtx{}
-		fctx.Request.Header.SetMethod("GET")
+		fctx.Request.Header.SetMethod(fiber.MethodGet)
 		fctx.Request.SetRequestURI("/")
 
-		bb.ReportAllocs()
-		bb.ResetTimer()
+		b.ReportAllocs()
+		b.ResetTimer()
 
-		for n := 0; n < bb.N; n++ {
+		for n := 0; n < b.N; n++ {
 			h(fctx)
 		}
 
-		utils.AssertEqual(bb, 200, fctx.Response.Header.StatusCode())
+		utils.AssertEqual(b, 200, fctx.Response.Header.StatusCode())
 	}
 
 	b.Run("Base", func(bb *testing.B) {
@@ -363,8 +366,7 @@ func Test_Response_Header(t *testing.T) {
 		return c.SendString("Hello fiber!")
 	})
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
-
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusOK, resp.StatusCode)
 	utils.AssertEqual(t, "Hello fiber!", buf.String())
@@ -383,10 +385,10 @@ func Test_Req_Header(t *testing.T) {
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Hello fiber!")
 	})
-	headerReq := httptest.NewRequest("GET", "/", nil)
+	headerReq := httptest.NewRequest(fiber.MethodGet, "/", nil)
 	headerReq.Header.Add("test", "Hello fiber!")
-	resp, err := app.Test(headerReq)
 
+	resp, err := app.Test(headerReq)
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusOK, resp.StatusCode)
 	utils.AssertEqual(t, "Hello fiber!", buf.String())
@@ -405,10 +407,10 @@ func Test_ReqHeader_Header(t *testing.T) {
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Hello fiber!")
 	})
-	reqHeaderReq := httptest.NewRequest("GET", "/", nil)
+	reqHeaderReq := httptest.NewRequest(fiber.MethodGet, "/", nil)
 	reqHeaderReq.Header.Add("test", "Hello fiber!")
-	resp, err := app.Test(reqHeaderReq)
 
+	resp, err := app.Test(reqHeaderReq)
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusOK, resp.StatusCode)
 	utils.AssertEqual(t, "Hello fiber!", buf.String())
@@ -434,10 +436,10 @@ func Test_CustomTags(t *testing.T) {
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Hello fiber!")
 	})
-	reqHeaderReq := httptest.NewRequest("GET", "/", nil)
+	reqHeaderReq := httptest.NewRequest(fiber.MethodGet, "/", nil)
 	reqHeaderReq.Header.Add("test", "Hello fiber!")
-	resp, err := app.Test(reqHeaderReq)
 
+	resp, err := app.Test(reqHeaderReq)
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusOK, resp.StatusCode)
 	utils.AssertEqual(t, customTag, buf.String())
@@ -476,7 +478,7 @@ func Test_Logger_ByteSent_Streaming(t *testing.T) {
 		return nil
 	})
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusOK, resp.StatusCode)
 	utils.AssertEqual(t, "0 0 200", buf.String())

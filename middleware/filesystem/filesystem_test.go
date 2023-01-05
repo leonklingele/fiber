@@ -1,6 +1,8 @@
+//nolint:bodyclose // Much easier to just ignore memory leaks in tests
 package filesystem
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -117,7 +119,7 @@ func Test_FileSystem(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := app.Test(httptest.NewRequest("GET", tt.url, nil))
+			resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, tt.url, nil))
 			utils.AssertEqual(t, nil, err)
 			utils.AssertEqual(t, tt.statusCode, resp.StatusCode)
 
@@ -139,7 +141,7 @@ func Test_FileSystem_Next(t *testing.T) {
 		},
 	}))
 
-	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, fiber.StatusNotFound, resp.StatusCode)
 }
@@ -163,7 +165,8 @@ func Test_FileSystem_Head(t *testing.T) {
 		Root: http.Dir("../../.github/testdata/fs"),
 	}))
 
-	req, _ := http.NewRequest(fiber.MethodHead, "/test", nil)
+	req, err := http.NewRequestWithContext(context.Background(), fiber.MethodHead, "/test", nil)
+	utils.AssertEqual(t, nil, err)
 	resp, err := app.Test(req)
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, 200, resp.StatusCode)
@@ -176,7 +179,8 @@ func Test_FileSystem_NoRoot(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(New())
-	_, _ = app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
+	_, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
+	utils.AssertEqual(t, nil, err)
 }
 
 func Test_FileSystem_UsingParam(t *testing.T) {
@@ -186,7 +190,8 @@ func Test_FileSystem_UsingParam(t *testing.T) {
 		return SendFile(c, http.Dir("../../.github/testdata/fs"), c.Params("path")+".html")
 	})
 
-	req, _ := http.NewRequest(fiber.MethodHead, "/index", nil)
+	req, err := http.NewRequestWithContext(context.Background(), fiber.MethodHead, "/index", nil)
+	utils.AssertEqual(t, nil, err)
 	resp, err := app.Test(req)
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, 200, resp.StatusCode)
@@ -199,7 +204,8 @@ func Test_FileSystem_UsingParam_NonFile(t *testing.T) {
 		return SendFile(c, http.Dir("../../.github/testdata/fs"), c.Params("path")+".html")
 	})
 
-	req, _ := http.NewRequest(fiber.MethodHead, "/template", nil)
+	req, err := http.NewRequestWithContext(context.Background(), fiber.MethodHead, "/template", nil)
+	utils.AssertEqual(t, nil, err)
 	resp, err := app.Test(req)
 	utils.AssertEqual(t, nil, err)
 	utils.AssertEqual(t, 404, resp.StatusCode)

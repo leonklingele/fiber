@@ -2,6 +2,7 @@
 // 📃 Github Repository: https://github.com/gofiber/fiber
 // 📌 API Documentation: https://docs.gofiber.io
 
+//nolint:bodyclose // Much easier to just ignore memory leaks in tests
 package fiber
 
 // go test -v ./... -run=^$ -bench=Benchmark_Router -benchmem -count=2
@@ -17,11 +18,14 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v2/utils"
+
 	"github.com/valyala/fasthttp"
 )
 
-var routesFixture = routeJSON{}
+//nolint:gochecknoglobals // TODO: Do not use a global var here
+var routesFixture routeJSON
 
+//nolint:gochecknoinits // init() is used to populate a global struct from a JSON file
 func init() {
 	dat, err := os.ReadFile("./.github/testdata/testRoutes.json")
 	if err != nil {
@@ -551,7 +555,7 @@ func Benchmark_Router_Chain(b *testing.B) {
 
 	c := &fasthttp.RequestCtx{}
 
-	c.Request.Header.SetMethod("GET")
+	c.Request.Header.SetMethod(MethodGet)
 	c.URI().SetPath("/")
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -575,7 +579,7 @@ func Benchmark_Router_WithCompression(b *testing.B) {
 	appHandler := app.Handler()
 	c := &fasthttp.RequestCtx{}
 
-	c.Request.Header.SetMethod("GET")
+	c.Request.Header.SetMethod(MethodGet)
 	c.URI().SetPath("/")
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -801,6 +805,6 @@ type testRoute struct {
 }
 
 type routeJSON struct {
-	TestRoutes []testRoute `json:"testRoutes"`
-	GithubAPI  []testRoute `json:"githubAPI"`
+	TestRoutes []testRoute `json:"test_routes"`
+	GithubAPI  []testRoute `json:"github_api"`
 }

@@ -1,9 +1,13 @@
 package utils
 
-import "net"
+import (
+	"net"
+)
 
 // IsIPv4 works the same way as net.ParseIP,
 // but without check for IPv6 case and without returning net.IP slice, whereby IsIPv4 makes no allocations.
+//
+//nolint:gomnd // Magic numbers used for a faster algorithm than net.ParseIP
 func IsIPv4(s string) bool {
 	for i := 0; i < net.IPv4len; i++ {
 		if len(s) == 0 {
@@ -38,6 +42,8 @@ func IsIPv4(s string) bool {
 
 // IsIPv6 works the same way as net.ParseIP,
 // but without check for IPv4 case and without returning net.IP slice, whereby IsIPv6 makes no allocations.
+//
+//nolint:gomnd // Magic numbers used for a faster algorithm than net.ParseIP
 func IsIPv6(s string) bool {
 	ellipsis := -1 // position of ellipsis in ip
 
