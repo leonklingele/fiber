@@ -145,7 +145,7 @@ func (app *App) next(c *Ctx) (bool, error) {
 	return false, err
 }
 
-func (app *App) handler(rctx *fasthttp.RequestCtx) { //nolint:revive // Having both a Handler() (uppercase) and a handler() (lowercase) is fine
+func (app *App) handler(rctx *fasthttp.RequestCtx) {
 	// Acquire Ctx with fasthttp request from pool
 	c := app.AcquireCtx(rctx)
 	defer app.ReleaseCtx(c)

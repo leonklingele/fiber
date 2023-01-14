@@ -826,7 +826,7 @@ func (app *App) Config() Config {
 }
 
 // Handler returns the server handler.
-func (app *App) Handler() fasthttp.RequestHandler { //nolint:revive // Having both a Handler() (uppercase) and a handler() (lowercase) is fine
+func (app *App) Handler() fasthttp.RequestHandler {
 	// prepare the server for the start
 	app.startupProcess()
 	return app.handler
